@@ -1,18 +1,34 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { SearchInput } from './components/SearchInput';
 import { ColumnHeaders } from './components/ColumnHeaders';
 import { ResultTable } from './components/ResultTable';
 import { StatusBar } from './components/StatusBar';
 import { useSearch } from './hooks/useSearch';
+import { useSelection } from './hooks/useSelection';
+import { useKeyboard } from './hooks/useKeyboard';
 import type { SortColumn, SortDirection } from '../shared/types';
 
 export function App() {
   const { query, setQuery, grouped, flatResults } = useSearch();
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [multiSelected, setMultiSelected] = useState<Set<number>>(new Set());
+
+  const {
+    selectedIndex,
+    multiSelected,
+    moveDown,
+    moveUp,
+    jumpToStart,
+    jumpToEnd,
+    shiftMoveDown,
+    shiftMoveUp,
+    clearMultiSelect,
+  } = useSelection(flatResults.length);
+
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const getActiveCategory = (): string | null => {
     let count = 0;
@@ -23,16 +39,18 @@ export function App() {
     return null;
   };
 
-  const handleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(column);
+  const handleSort = useCallback((column: SortColumn) => {
+    setSortColumn((prev) => {
+      if (prev === column) {
+        setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
       setSortDirection('asc');
-    }
-  };
+      return column;
+    });
+  }, []);
 
-  const handleExecute = (index: number) => {
+  const handleExecute = useCallback((index: number) => {
     const result = flatResults[index];
     if (result) {
       window.omni.execute(result.action);
@@ -43,44 +61,69 @@ export function App() {
         title: result.title,
       });
     }
-  };
+  }, [flatResults, query]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        if (e.shiftKey) setMultiSelected((prev) => new Set([...prev, selectedIndex]));
-        setSelectedIndex((i) => Math.min(i + 1, flatResults.length - 1));
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        if (e.shiftKey) setMultiSelected((prev) => new Set([...prev, selectedIndex]));
-        setSelectedIndex((i) => Math.max(i - 1, 0));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        handleExecute(selectedIndex);
-        break;
-      case 'Escape':
-        e.preventDefault();
-        if (multiSelected.size > 0) {
-          setMultiSelected(new Set());
-        } else if (expandedCategory) {
-          setExpandedCategory(null);
-        } else {
-          window.omni.hideWindow();
-        }
-        break;
-      case 'Home':
-        e.preventDefault();
-        setSelectedIndex(0);
-        break;
-      case 'End':
-        e.preventDefault();
-        setSelectedIndex(flatResults.length - 1);
-        break;
+  const handleExpandCategory = useCallback((category: string) => {
+    setExpandedCategory(category);
+  }, []);
+
+  const handleCollapseCategory = useCallback(() => {
+    setExpandedCategory(null);
+  }, []);
+
+  const handleOpenContextMenu = useCallback(() => {
+    setContextMenuOpen(true);
+  }, []);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenuOpen(false);
+  }, []);
+
+  const handleTogglePreview = useCallback(() => {
+    setPreviewOpen((prev) => !prev);
+  }, []);
+
+  const handleToggleHelp = useCallback(() => {
+    setHelpOpen((prev) => !prev);
+  }, []);
+
+  const handleCopyPath = useCallback(() => {
+    const result = flatResults[selectedIndex];
+    if (result) {
+      window.omni.execute({ type: 'copy', text: result.subtitle });
     }
-  };
+  }, [flatResults, selectedIndex]);
+
+  const handleHide = useCallback(() => {
+    window.omni.hideWindow();
+  }, []);
+
+  const { handleKeyDown } = useKeyboard({
+    grouped,
+    selectedIndex,
+    multiSelected,
+    expandedCategory,
+    contextMenuOpen,
+    previewOpen,
+    helpOpen,
+    moveDown,
+    moveUp,
+    jumpToStart,
+    jumpToEnd,
+    shiftMoveDown,
+    shiftMoveUp,
+    clearMultiSelect,
+    onExecute: handleExecute,
+    onExpandCategory: handleExpandCategory,
+    onCollapseCategory: handleCollapseCategory,
+    onOpenContextMenu: handleOpenContextMenu,
+    onCloseContextMenu: handleCloseContextMenu,
+    onTogglePreview: handleTogglePreview,
+    onToggleHelp: handleToggleHelp,
+    onSort: handleSort,
+    onCopyPath: handleCopyPath,
+    onHide: handleHide,
+  });
 
   return (
     <div className="w-full h-full bg-omni-bg text-omni-text font-sans flex flex-col">
