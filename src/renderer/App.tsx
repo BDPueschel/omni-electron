@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { SearchInput } from './components/SearchInput';
 import { ColumnHeaders } from './components/ColumnHeaders';
 import { ResultTable } from './components/ResultTable';
@@ -72,6 +72,30 @@ export function App() {
       }),
     }));
   }, [grouped, sortColumn, sortDirection]);
+
+  useEffect(() => {
+    let height: number;
+
+    if (previewData) {
+      height = 500;
+    } else if (helpOpen) {
+      height = 420;
+    } else if (contextMenuIndex !== null) {
+      height = 52 + 28 * 3 + 32 * 3;
+    } else if (flatResults.length > 0) {
+      const groupCount = sortedGrouped.length;
+      const rowCount = flatResults.length;
+      height = 52 + 28 + groupCount * 28 + rowCount * 32 + 24;
+    } else if (query.trim()) {
+      height = 52 + 52;
+    } else {
+      height = 52;
+    }
+
+    if (window.omni?.resizeWindow) {
+      window.omni.resizeWindow(height);
+    }
+  }, [previewData, helpOpen, contextMenuIndex, flatResults, sortedGrouped, query]);
 
   const getActiveCategory = (): string | null => {
     let count = 0;

@@ -97,6 +97,18 @@ export function registerIpcHandlers(
     tracker.record(data.query, data.resultPath, data.category, data.title);
   });
 
+  ipcMain.handle('resize-window', (_event, height: number) => {
+    const win = getWindow();
+    if (!win) return;
+    const cfg = config.get();
+    const { screen } = require('electron');
+    const { height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+    const maxHeight = Math.floor(screenHeight * 0.85);
+    const clampedHeight = Math.min(Math.max(height, 52), maxHeight);
+    const bounds = win.getBounds();
+    win.setBounds({ x: bounds.x, y: bounds.y, width: cfg.windowWidth, height: clampedHeight });
+  });
+
   ipcMain.handle('preview-file', async (_event, filePath: string) => {
     try {
       const stat = fs.statSync(filePath);
