@@ -4,12 +4,22 @@ import { UrlProvider } from './url';
 import { WebProvider } from './web';
 import { ColorProvider } from './color';
 import { SystemProvider } from './system';
+import { AppsProvider } from './apps';
+import { FileProvider } from './files';
+import { DirectoryProvider } from './directories';
+import { ClipboardProvider } from './clipboard';
+import { ProcessesProvider } from './processes';
 
 export { MathProvider } from './math';
 export { UrlProvider } from './url';
 export { WebProvider } from './web';
 export { ColorProvider } from './color';
 export { SystemProvider } from './system';
+export { AppsProvider } from './apps';
+export { FileProvider } from './files';
+export { DirectoryProvider } from './directories';
+export { ClipboardProvider } from './clipboard';
+export { ProcessesProvider } from './processes';
 
 export class ProviderRegistry {
   private providers: SearchProvider[];
@@ -23,7 +33,16 @@ export class ProviderRegistry {
       this.webProvider,
       new ColorProvider(),
       new SystemProvider(),
+      new AppsProvider(),
+      new FileProvider(),
+      new DirectoryProvider(),
+      new ClipboardProvider(),
+      new ProcessesProvider(),
     ];
+  }
+
+  getClipboardProvider(): ClipboardProvider | undefined {
+    return this.providers.find(p => p.category === 'Clipboard') as ClipboardProvider | undefined;
   }
 
   addProvider(provider: SearchProvider): void {

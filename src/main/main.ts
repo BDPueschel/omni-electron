@@ -79,6 +79,7 @@ app.whenReady().then(() => {
   const registry = new ProviderRegistry();
   registry.updateConfig(config.get());
   registry.addProvider(new FrequentProvider(tracker));
+  registry.getClipboardProvider()?.startWatching();
   registerIpcHandlers(config, registry, tracker, () => mainWindow);
   createWindow();
   registerHotkey();
