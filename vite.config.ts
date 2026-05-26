@@ -18,4 +18,9 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  test: {
+    root: '.',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    environment: 'node',
+  },
 });
