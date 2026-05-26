@@ -6,7 +6,8 @@ interface UseKeyboardConfig {
   selectedIndex: number;
   multiSelected: Set<number>;
   expandedCategory: string | null;
-  contextMenuOpen: boolean;
+  contextMenuIndex: number | null;
+  contextActionIndex: number;
   previewOpen: boolean;
   helpOpen: boolean;
   // selection actions
@@ -23,6 +24,9 @@ interface UseKeyboardConfig {
   onCollapseCategory: () => void;
   onOpenContextMenu: () => void;
   onCloseContextMenu: () => void;
+  onContextActionUp: () => void;
+  onContextActionDown: () => void;
+  onExecuteContextAction: () => void;
   onTogglePreview: () => void;
   onToggleHelp: () => void;
   onSort: (column: SortColumn) => void;
@@ -44,7 +48,8 @@ export function useKeyboard(config: UseKeyboardConfig) {
     selectedIndex,
     multiSelected,
     expandedCategory,
-    contextMenuOpen,
+    contextMenuIndex,
+    contextActionIndex,
     previewOpen,
     helpOpen,
     moveDown,
@@ -59,6 +64,9 @@ export function useKeyboard(config: UseKeyboardConfig) {
     onCollapseCategory,
     onOpenContextMenu,
     onCloseContextMenu,
+    onContextActionUp,
+    onContextActionDown,
+    onExecuteContextAction,
     onTogglePreview,
     onToggleHelp,
     onSort,
@@ -93,6 +101,35 @@ export function useKeyboard(config: UseKeyboardConfig) {
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     const { key, shiftKey, ctrlKey } = e;
+
+    // Context menu mode: intercept navigation keys
+    if (contextMenuIndex !== null) {
+      switch (key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          onContextActionDown();
+          return;
+        case 'ArrowUp':
+          e.preventDefault();
+          onContextActionUp();
+          return;
+        case 'Enter':
+          e.preventDefault();
+          onExecuteContextAction();
+          return;
+        case 'Escape':
+          e.preventDefault();
+          onCloseContextMenu();
+          return;
+        case 'ArrowLeft':
+          if (shiftKey) {
+            e.preventDefault();
+            onCloseContextMenu();
+          }
+          return;
+      }
+      return;
+    }
 
     // Ctrl+key combos
     if (ctrlKey) {
@@ -195,8 +232,6 @@ export function useKeyboard(config: UseKeyboardConfig) {
           onTogglePreview();
         } else if (helpOpen) {
           onToggleHelp();
-        } else if (contextMenuOpen) {
-          onCloseContextMenu();
         } else if (expandedCategory) {
           onCollapseCategory();
         } else if (multiSelected.size > 0) {
@@ -223,7 +258,8 @@ export function useKeyboard(config: UseKeyboardConfig) {
     selectedIndex,
     multiSelected,
     expandedCategory,
-    contextMenuOpen,
+    contextMenuIndex,
+    contextActionIndex,
     previewOpen,
     helpOpen,
     moveDown,
@@ -240,6 +276,9 @@ export function useKeyboard(config: UseKeyboardConfig) {
     onCollapseCategory,
     onOpenContextMenu,
     onCloseContextMenu,
+    onContextActionUp,
+    onContextActionDown,
+    onExecuteContextAction,
     onTogglePreview,
     onToggleHelp,
     onSort,

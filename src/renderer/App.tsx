@@ -1,8 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { SearchInput } from './components/SearchInput';
 import { ColumnHeaders } from './components/ColumnHeaders';
 import { ResultTable } from './components/ResultTable';
 import { StatusBar } from './components/StatusBar';
+import { ContextMenu, getContextActions } from './components/ContextMenu';
+import { BatchContextMenu } from './components/BatchContextMenu';
+import { PreviewPanel } from './components/PreviewPanel';
+import type { PreviewData } from './components/PreviewPanel';
+import { HelpOverlay } from './components/HelpOverlay';
 import { useSearch } from './hooks/useSearch';
 import { useSelection } from './hooks/useSelection';
 import { useKeyboard } from './hooks/useKeyboard';
@@ -26,9 +31,47 @@ export function App() {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [contextMenuOpen, setContextMenuOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [contextMenuIndex, setContextMenuIndex] = useState<number | null>(null);
+  const [contextActionIndex, setContextActionIndex] = useState(0);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  const sortedGrouped = useMemo(() => {
+    if (!sortColumn) return grouped;
+    return grouped.map((group) => ({
+      ...group,
+      results: [...group.results].sort((a, b) => {
+        let aVal: string;
+        let bVal: string;
+        switch (sortColumn) {
+          case 'name':
+            aVal = a.title;
+            bVal = b.title;
+            break;
+          case 'location':
+            aVal = a.subtitle;
+            bVal = b.subtitle;
+            break;
+          case 'size':
+            aVal = a.size ?? '';
+            bVal = b.size ?? '';
+            break;
+          case 'modified':
+            aVal = a.modified ?? '';
+            bVal = b.modified ?? '';
+            break;
+          case 'kind':
+            aVal = a.kind;
+            bVal = b.kind;
+            break;
+          default:
+            return 0;
+        }
+        const cmp = aVal.localeCompare(bVal, undefined, { numeric: true });
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }),
+    }));
+  }, [grouped, sortColumn, sortDirection]);
 
   const getActiveCategory = (): string | null => {
     let count = 0;
@@ -72,16 +115,49 @@ export function App() {
   }, []);
 
   const handleOpenContextMenu = useCallback(() => {
-    setContextMenuOpen(true);
-  }, []);
+    setContextMenuIndex(selectedIndex);
+    setContextActionIndex(0);
+  }, [selectedIndex]);
 
   const handleCloseContextMenu = useCallback(() => {
-    setContextMenuOpen(false);
+    setContextMenuIndex(null);
+    setContextActionIndex(0);
   }, []);
 
-  const handleTogglePreview = useCallback(() => {
-    setPreviewOpen((prev) => !prev);
+  const handleContextActionUp = useCallback(() => {
+    setContextActionIndex((prev) => Math.max(0, prev - 1));
   }, []);
+
+  const handleContextActionDown = useCallback(() => {
+    const result = contextMenuIndex !== null ? flatResults[contextMenuIndex] : null;
+    if (!result) return;
+    const actions = getContextActions(result);
+    setContextActionIndex((prev) => Math.min(actions.length - 1, prev + 1));
+  }, [contextMenuIndex, flatResults]);
+
+  const handleExecuteContextAction = useCallback(() => {
+    if (contextMenuIndex === null) return;
+    const result = flatResults[contextMenuIndex];
+    if (!result) return;
+    const actions = getContextActions(result);
+    const action = actions[contextActionIndex];
+    if (action) {
+      window.omni.execute(action.action);
+      handleCloseContextMenu();
+    }
+  }, [contextMenuIndex, contextActionIndex, flatResults, handleCloseContextMenu]);
+
+  const handleTogglePreview = useCallback(async () => {
+    if (previewData) {
+      setPreviewData(null);
+      return;
+    }
+    const result = flatResults[selectedIndex];
+    if (!result) return;
+    const filePath = result.action.type === 'open' ? result.action.path : result.subtitle;
+    const data = await window.omni.previewFile(filePath);
+    if (data) setPreviewData(data as PreviewData);
+  }, [previewData, flatResults, selectedIndex]);
 
   const handleToggleHelp = useCallback(() => {
     setHelpOpen((prev) => !prev);
@@ -103,8 +179,9 @@ export function App() {
     selectedIndex,
     multiSelected,
     expandedCategory,
-    contextMenuOpen,
-    previewOpen,
+    contextMenuIndex,
+    contextActionIndex,
+    previewOpen: previewData !== null,
     helpOpen,
     moveDown,
     moveUp,
@@ -118,6 +195,9 @@ export function App() {
     onCollapseCategory: handleCollapseCategory,
     onOpenContextMenu: handleOpenContextMenu,
     onCloseContextMenu: handleCloseContextMenu,
+    onContextActionUp: handleContextActionUp,
+    onContextActionDown: handleContextActionDown,
+    onExecuteContextAction: handleExecuteContextAction,
     onTogglePreview: handleTogglePreview,
     onToggleHelp: handleToggleHelp,
     onSort: handleSort,
@@ -125,14 +205,43 @@ export function App() {
     onHide: handleHide,
   });
 
-  return (
-    <div className="w-full h-full bg-omni-bg text-omni-text font-sans flex flex-col">
-      <SearchInput value={query} onInput={setQuery} onKeyDown={handleKeyDown} />
-      {flatResults.length > 0 ? (
+  const renderMain = () => {
+    if (previewData) {
+      return <PreviewPanel data={previewData} />;
+    }
+    if (helpOpen) {
+      return <HelpOverlay />;
+    }
+    if (contextMenuIndex !== null) {
+      const result = flatResults[contextMenuIndex];
+      if (result) {
+        if (multiSelected.size > 0) {
+          return (
+            <BatchContextMenu
+              count={multiSelected.size}
+              selectedAction={contextActionIndex}
+              onExecute={(_label) => handleCloseContextMenu()}
+            />
+          );
+        }
+        return (
+          <ContextMenu
+            result={result}
+            selectedActionIndex={contextActionIndex}
+            onExecute={(action) => {
+              window.omni.execute(action);
+              handleCloseContextMenu();
+            }}
+          />
+        );
+      }
+    }
+    if (flatResults.length > 0) {
+      return (
         <>
           <ColumnHeaders sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
           <ResultTable
-            grouped={grouped}
+            grouped={sortedGrouped}
             selectedIndex={selectedIndex}
             multiSelected={multiSelected}
             activeCategory={getActiveCategory()}
@@ -147,9 +256,18 @@ export function App() {
             multiSelectedCount={multiSelected.size}
           />
         </>
-      ) : query.trim() ? (
-        <div className="text-center py-6 text-white/30 text-sm">No results found</div>
-      ) : null}
+      );
+    }
+    if (query.trim()) {
+      return <div className="text-center py-6 text-white/30 text-sm">No results found</div>;
+    }
+    return null;
+  };
+
+  return (
+    <div className="w-full h-full bg-omni-bg text-omni-text font-sans flex flex-col">
+      <SearchInput value={query} onInput={setQuery} onKeyDown={handleKeyDown} />
+      {renderMain()}
     </div>
   );
 }

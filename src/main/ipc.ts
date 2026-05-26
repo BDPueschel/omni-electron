@@ -1,8 +1,25 @@
 import { ipcMain, BrowserWindow, shell, clipboard } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ConfigManager } from './config';
 import { ProviderRegistry } from './providers';
 import { UsageTracker } from './usage';
 import { ResultAction } from '../shared/types';
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff', '.tif']);
+const TEXT_EXTENSIONS = new Set([
+  '.txt', '.md', '.js', '.ts', '.tsx', '.jsx', '.json', '.yaml', '.yml',
+  '.toml', '.ini', '.cfg', '.conf', '.sh', '.bash', '.zsh', '.py', '.rb',
+  '.go', '.rs', '.java', '.c', '.cpp', '.h', '.hpp', '.css', '.scss',
+  '.html', '.xml', '.svg', '.log', '.env', '.gitignore', '.dockerfile',
+]);
 
 export function registerIpcHandlers(
   config: ConfigManager,
@@ -80,7 +97,45 @@ export function registerIpcHandlers(
     tracker.record(data.query, data.resultPath, data.category, data.title);
   });
 
-  ipcMain.handle('preview-file', async (_event, _filePath: string) => {
-    return null;
+  ipcMain.handle('preview-file', async (_event, filePath: string) => {
+    try {
+      const stat = fs.statSync(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      const name = path.basename(filePath);
+      const size = formatSize(stat.size);
+      const modified = stat.mtime.toLocaleDateString();
+
+      const isImage = IMAGE_EXTENSIONS.has(ext);
+      const isText = TEXT_EXTENSIONS.has(ext) || (stat.size < 500 * 1024 && !isImage);
+
+      if (isImage) {
+        const mimeMap: Record<string, string> = {
+          '.png': 'image/png',
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.gif': 'image/gif',
+          '.bmp': 'image/bmp',
+          '.webp': 'image/webp',
+          '.svg': 'image/svg+xml',
+          '.ico': 'image/x-icon',
+          '.tiff': 'image/tiff',
+          '.tif': 'image/tiff',
+        };
+        const mime = mimeMap[ext] ?? 'image/png';
+        const data = fs.readFileSync(filePath);
+        const imageData = `data:${mime};base64,${data.toString('base64')}`;
+        return { name, path: filePath, size, modified, isImage: true, isText: false, content: null, imageData };
+      }
+
+      if (isText && stat.size < 500 * 1024) {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        const lines = raw.split('\n').slice(0, 500).join('\n');
+        return { name, path: filePath, size, modified, isImage: false, isText: true, content: lines, imageData: null };
+      }
+
+      return { name, path: filePath, size, modified, isImage: false, isText: false, content: null, imageData: null };
+    } catch {
+      return null;
+    }
   });
 }
