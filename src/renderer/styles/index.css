@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --color-omni-bg: #0a0a0f;
+  --color-omni-text: #e0e0e0;
+  --color-omni-muted: rgba(255, 255, 255, 0.35);
+  --color-omni-accent: #82b4ff;
+  --color-omni-accent-bg: rgba(130, 180, 255, 0.12);
+  --color-omni-accent-border: rgba(130, 180, 255, 0.6);
+  --color-omni-group-text: rgba(130, 180, 255, 0.5);
+  --color-omni-group-border: rgba(130, 180, 255, 0.25);
+  --color-omni-multi-bg: rgba(130, 180, 255, 0.08);
+  --color-omni-multi-border: rgba(130, 180, 255, 0.5);
+  --color-omni-separator: rgba(255, 255, 255, 0.06);
+
+  --font-family-sans: "Segoe UI", system-ui, sans-serif;
+  --font-family-mono: "Cascadia Code", "Consolas", monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a0f;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
+}
