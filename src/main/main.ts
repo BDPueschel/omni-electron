@@ -2,6 +2,7 @@ import { app, BrowserWindow, globalShortcut } from 'electron';
 import path from 'path';
 import { ConfigManager } from './config';
 import { registerIpcHandlers } from './ipc';
+import { ProviderRegistry } from './providers';
 
 let mainWindow: BrowserWindow | null = null;
 let config: ConfigManager;
@@ -72,7 +73,9 @@ function registerHotkey() {
 app.whenReady().then(() => {
   const configPath = path.join(app.getPath('userData'), 'config.json');
   config = new ConfigManager(configPath);
-  registerIpcHandlers(config, () => mainWindow);
+  const registry = new ProviderRegistry();
+  registry.updateConfig(config.get());
+  registerIpcHandlers(config, registry, () => mainWindow);
   createWindow();
   registerHotkey();
 });
