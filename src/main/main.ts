@@ -3,6 +3,8 @@ import path from 'path';
 import { ConfigManager } from './config';
 import { registerIpcHandlers } from './ipc';
 import { ProviderRegistry } from './providers';
+import { UsageTracker } from './usage';
+import { FrequentProvider } from './providers/frequent';
 
 let mainWindow: BrowserWindow | null = null;
 let config: ConfigManager;
@@ -73,9 +75,11 @@ function registerHotkey() {
 app.whenReady().then(() => {
   const configPath = path.join(app.getPath('userData'), 'config.json');
   config = new ConfigManager(configPath);
+  const tracker = new UsageTracker(path.join(app.getPath('userData'), 'usage.db'));
   const registry = new ProviderRegistry();
   registry.updateConfig(config.get());
-  registerIpcHandlers(config, registry, () => mainWindow);
+  registry.addProvider(new FrequentProvider(tracker));
+  registerIpcHandlers(config, registry, tracker, () => mainWindow);
   createWindow();
   registerHotkey();
 });

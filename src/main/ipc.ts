@@ -1,11 +1,13 @@
 import { ipcMain, BrowserWindow, shell, clipboard } from 'electron';
 import { ConfigManager } from './config';
 import { ProviderRegistry } from './providers';
+import { UsageTracker } from './usage';
 import { ResultAction } from '../shared/types';
 
 export function registerIpcHandlers(
   config: ConfigManager,
   registry: ProviderRegistry,
+  tracker: UsageTracker,
   getWindow: () => BrowserWindow | null,
 ) {
   ipcMain.handle('get-config', () => {
@@ -62,11 +64,20 @@ export function registerIpcHandlers(
   });
 
   ipcMain.handle('get-frequent', async () => {
-    return [];
+    const records = tracker.getFrequent(10);
+    return records.map((r) => ({
+      category: 'Frequent',
+      title: r.title,
+      subtitle: r.path,
+      action: { type: 'open', path: r.path },
+      icon: '⭐',
+      kind: r.category,
+      modified: r.lastUsed,
+    }));
   });
 
-  ipcMain.handle('record-selection', async (_event, _data) => {
-    // Implemented in Task 9
+  ipcMain.handle('record-selection', async (_event, data) => {
+    tracker.record(data.query, data.resultPath, data.category, data.title);
   });
 
   ipcMain.handle('preview-file', async (_event, _filePath: string) => {
