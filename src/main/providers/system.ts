@@ -19,14 +19,23 @@ export class SystemProvider implements SearchProvider {
   category: CategoryName = 'System';
 
   async search(query: string, limit: number): Promise<SearchResult[]> {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return [];
 
-    const matches = SYSTEM_COMMANDS.filter(
-      cmd =>
-        cmd.title.toLowerCase().includes(q) ||
-        cmd.subtitle.toLowerCase().includes(q),
-    );
+    let matches: SystemCommand[];
+
+    try {
+      const { Fzf } = await import('fzf');
+      const fzf = new Fzf(SYSTEM_COMMANDS, { selector: (item: SystemCommand) => `${item.title} ${item.subtitle}` });
+      matches = fzf.find(q).map((r: { item: SystemCommand }) => r.item).slice(0, limit);
+    } catch {
+      const ql = q.toLowerCase();
+      matches = SYSTEM_COMMANDS.filter(
+        cmd =>
+          cmd.title.toLowerCase().includes(ql) ||
+          cmd.subtitle.toLowerCase().includes(ql),
+      ).slice(0, limit);
+    }
 
     return matches.slice(0, limit).map(cmd => ({
       category: 'System',

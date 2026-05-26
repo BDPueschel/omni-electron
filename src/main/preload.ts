@@ -15,4 +15,5 @@ contextBridge.exposeInMainWorld('omni', {
     ipcRenderer.on('window-shown', callback);
     return () => ipcRenderer.removeListener('window-shown', callback);
   },
+  completePath: (partial: string) => ipcRenderer.invoke('complete-path', partial),
 });

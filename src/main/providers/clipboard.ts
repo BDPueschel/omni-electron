@@ -63,12 +63,21 @@ export class ClipboardProvider implements SearchProvider {
   }
 
   async search(query: string, limit: number): Promise<SearchResult[]> {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return [];
 
-    const matches = this.history
-      .filter(entry => entry.text.toLowerCase().includes(q))
-      .slice(0, limit);
+    let matches: ClipEntry[];
+
+    try {
+      const { Fzf } = await import('fzf');
+      const fzf = new Fzf(this.history, { selector: (item: ClipEntry) => item.text });
+      matches = fzf.find(q).map((r: { item: ClipEntry }) => r.item).slice(0, limit);
+    } catch {
+      const ql = q.toLowerCase();
+      matches = this.history
+        .filter(entry => entry.text.toLowerCase().includes(ql))
+        .slice(0, limit);
+    }
 
     return matches.map((entry, idx) => {
       const preview = entry.text.length > 80

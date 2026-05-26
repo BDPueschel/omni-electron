@@ -83,18 +83,28 @@ export class AppsProvider implements SearchProvider {
   }
 
   async search(query: string, limit: number): Promise<SearchResult[]> {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return [];
 
     if (Date.now() - this.lastRefresh > this.TTL_MS || this.cache.length === 0) {
       await this.refresh();
     }
 
-    const matches = this.cache
-      .filter(app => app.title.toLowerCase().includes(q))
-      .slice(0, limit);
+    let matchedApps: AppEntry[];
 
-    return matches.map(app => ({
+    try {
+      const { Fzf } = await import('fzf');
+      const fzf = new Fzf(this.cache, { selector: (item: AppEntry) => item.title });
+      matchedApps = fzf.find(q).map((r: { item: AppEntry }) => r.item).slice(0, limit);
+    } catch {
+      // Fallback to substring matching if fzf fails to load
+      const ql = q.toLowerCase();
+      matchedApps = this.cache
+        .filter(app => app.title.toLowerCase().includes(ql))
+        .slice(0, limit);
+    }
+
+    return matchedApps.map(app => ({
       category: 'Apps',
       title: app.title,
       subtitle: app.appPath,

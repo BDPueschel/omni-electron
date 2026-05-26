@@ -117,17 +117,29 @@ export function App() {
     });
   }, []);
 
+  const DESTRUCTIVE_SYSTEM_COMMANDS = new Set(['shutdown', 'restart', 'sign_out']);
+
   const handleExecute = useCallback((index: number) => {
     const result = flatResults[index];
-    if (result) {
-      window.omni.execute(result.action);
-      window.omni.recordSelection({
-        query,
-        resultPath: result.subtitle,
-        category: result.category,
-        title: result.title,
-      });
+    if (!result) return;
+
+    // Confirm destructive actions before executing
+    const action = result.action;
+    if (action.type === 'system_command' && DESTRUCTIVE_SYSTEM_COMMANDS.has(action.command)) {
+      const confirmed = window.confirm(`Are you sure you want to ${result.title.toLowerCase()}?`);
+      if (!confirmed) return;
+    } else if (action.type === 'kill_process') {
+      const confirmed = window.confirm(`Kill process "${action.name}" (PID ${action.pid})?`);
+      if (!confirmed) return;
     }
+
+    window.omni.execute(action);
+    window.omni.recordSelection({
+      query,
+      resultPath: result.subtitle,
+      category: result.category,
+      title: result.title,
+    });
   }, [flatResults, query]);
 
   const handleExpandCategory = useCallback((category: string) => {

@@ -1,10 +1,12 @@
 import { ipcMain, BrowserWindow, shell, clipboard } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { ConfigManager } from './config';
 import { ProviderRegistry } from './providers';
 import { UsageTracker } from './usage';
 import { ResultAction } from '../shared/types';
+import { executeSystemCommand } from './system-commands';
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -38,6 +40,13 @@ export function registerIpcHandlers(
     if (win) {
       win.setSize(newConfig.windowWidth, win.getBounds().height);
     }
+    // Apply autostart setting
+    try {
+      const { app } = require('electron') as typeof import('electron');
+      app.setLoginItemSettings({ openAtLogin: Boolean(newConfig.startWithOS) });
+    } catch {
+      // Not critical if this fails
+    }
   });
 
   ipcMain.handle('hide-window', () => {
@@ -64,8 +73,7 @@ export function registerIpcHandlers(
         clipboard.writeText(action.text);
         break;
       case 'system_command':
-        // executeSystemCommand is implemented in Task 17
-        console.log(`[system_command] stub: ${action.command}`);
+        executeSystemCommand(action.command);
         break;
       case 'kill_process':
         // Implemented in a later task
@@ -107,6 +115,29 @@ export function registerIpcHandlers(
     const clampedHeight = Math.min(Math.max(height, 52), maxHeight);
     const bounds = win.getBounds();
     win.setBounds({ x: bounds.x, y: bounds.y, width: cfg.windowWidth, height: clampedHeight });
+  });
+
+  ipcMain.handle('complete-path', async (_event, partial: string) => {
+    try {
+      // Expand ~ to homedir
+      const expanded = partial.startsWith('~')
+        ? os.homedir() + partial.slice(1)
+        : partial;
+
+      // Determine the directory to read and prefix to match
+      const trailingSep = expanded.endsWith(path.sep) || expanded.endsWith('/');
+      const dir = trailingSep ? expanded : path.dirname(expanded);
+      const prefix = trailingSep ? '' : path.basename(expanded).toLowerCase();
+
+      if (!fs.existsSync(dir)) return [];
+
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      return entries
+        .filter(e => e.isDirectory() && e.name.toLowerCase().startsWith(prefix))
+        .map(e => path.join(dir, e.name));
+    } catch {
+      return [];
+    }
   });
 
   ipcMain.handle('preview-file', async (_event, filePath: string) => {

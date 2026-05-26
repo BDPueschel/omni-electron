@@ -24,18 +24,26 @@ function formatDate(date: Date): string {
 export class FileProvider implements SearchProvider {
   category: CategoryName = 'Files';
 
-  async search(query: string, limit: number): Promise<SearchResult[]> {
+  async search(query: string, limit: number, pathScope?: string, wildcardExt?: string): Promise<SearchResult[]> {
     const q = query.trim();
-    if (!q) return [];
+    if (!q && !wildcardExt) return [];
 
     try {
       let filePaths: string[];
       if (process.platform === 'darwin') {
-        filePaths = await this.searchMac(q, limit);
+        filePaths = await this.searchMac(q || '*', limit, pathScope);
       } else if (process.platform === 'win32') {
-        filePaths = await this.searchWindows(q, limit);
+        filePaths = await this.searchWindows(q || '*', limit, pathScope);
       } else {
         return [];
+      }
+
+      // Filter by extension when wildcardExt is set
+      if (wildcardExt) {
+        filePaths = filePaths.filter(fp => {
+          const ext = fp.slice(fp.lastIndexOf('.')).toLowerCase();
+          return ext === wildcardExt;
+        });
       }
 
       const results: SearchResult[] = [];
@@ -64,19 +72,23 @@ export class FileProvider implements SearchProvider {
     }
   }
 
-  private async searchMac(query: string, limit: number): Promise<string[]> {
-    const { stdout } = await execFileAsync('mdfind', [
-      '-name', query,
-      '-limit', String(limit),
-    ]);
+  private async searchMac(query: string, limit: number, pathScope?: string): Promise<string[]> {
+    const args: string[] = [];
+    if (pathScope) {
+      args.push('-onlyin', pathScope);
+    }
+    args.push('-name', query, '-limit', String(limit));
+    const { stdout } = await execFileAsync('mdfind', args);
     return stdout.split('\n').filter(Boolean);
   }
 
-  private async searchWindows(query: string, limit: number): Promise<string[]> {
-    const { stdout } = await execFileAsync('es.exe', [
-      '-n', String(limit),
-      '-s', query,
-    ]);
+  private async searchWindows(query: string, limit: number, pathScope?: string): Promise<string[]> {
+    const args: string[] = ['-n', String(limit), '-s', query];
+    if (pathScope) {
+      // Everything search supports path: filter via -path flag
+      args.push('-path', pathScope);
+    }
+    const { stdout } = await execFileAsync('es.exe', args);
     return stdout.split('\r\n').filter(Boolean);
   }
 }

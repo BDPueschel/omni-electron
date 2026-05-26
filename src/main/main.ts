@@ -148,9 +148,14 @@ function registerHotkey() {
 app.whenReady().then(() => {
   const configPath = path.join(app.getPath('userData'), 'config.json');
   config = new ConfigManager(configPath);
+  const cfg = config.get();
+
+  // Apply autostart setting from config
+  app.setLoginItemSettings({ openAtLogin: Boolean(cfg.startWithOS) });
+
   const tracker = new UsageTracker(path.join(app.getPath('userData'), 'usage.db'));
   const registry = new ProviderRegistry();
-  registry.updateConfig(config.get());
+  registry.updateConfig(cfg);
   registry.addProvider(new FrequentProvider(tracker));
   registry.getClipboardProvider()?.startWatching();
   registerIpcHandlers(config, registry, tracker, () => mainWindow);

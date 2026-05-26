@@ -12,6 +12,7 @@ interface OmniAPI {
   hideWindow(): Promise<void>;
   resizeWindow(height: number): Promise<void>;
   onWindowShown(callback: () => void): () => void;
+  completePath(partial: string): Promise<string[]>;
 }
 
 declare global {
