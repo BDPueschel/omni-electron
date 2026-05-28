@@ -16,6 +16,8 @@ export type ResultAction =
   | { type: 'system_command'; command: string }
   | { type: 'kill_process'; pid: number; name: string };
 
+export type OmniTheme = 'midnight' | 'obsidian' | 'nord' | 'solarized' | 'monokai' | 'dracula';
+
 export interface OmniConfig {
   hotkey: string;
   maxResultsPerCategory: number;
@@ -23,6 +25,10 @@ export interface OmniConfig {
   startWithOS: boolean;
   themeOpacity: number;
   windowWidth: number;
+  everythingPort: number;
+  theme: OmniTheme;
+  fontScale: number;
+  animationScale: number;
 }
 
 export const DEFAULT_CONFIG: OmniConfig = {
@@ -32,10 +38,14 @@ export const DEFAULT_CONFIG: OmniConfig = {
   startWithOS: true,
   themeOpacity: 100,
   windowWidth: 850,
+  everythingPort: 8989,
+  theme: 'midnight' as OmniTheme,
+  fontScale: 1.0,
+  animationScale: 0.5,
 };
 
 export const CATEGORY_ORDER = [
-  'Frequent', 'Math', 'Color', 'Apps', 'System',
+  'Bookmarks', 'Frequent', 'Math', 'Color', 'Apps', 'System',
   'Clipboard', 'Processes', 'Files', 'Directories', 'URL', 'Web',
 ] as const;
 

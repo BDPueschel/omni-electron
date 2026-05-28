@@ -40,7 +40,7 @@ export class ProcessesProvider implements SearchProvider {
         category: 'Processes',
         title: p.name,
         subtitle: `PID ${p.pid} · ${formatMemory(p.memoryMB)}`,
-        icon: '⚙️',
+        icon: 'settings',
         kind: 'Proc',
         action: { type: 'kill_process' as const, pid: p.pid, name: p.name },
       }));

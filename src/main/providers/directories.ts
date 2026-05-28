@@ -41,7 +41,7 @@ export class DirectoryProvider implements SearchProvider {
             category: 'Directories',
             title: path.basename(dirPath),
             subtitle: dirPath,
-            icon: '📁',
+            icon: 'folder',
             kind: 'Dir',
             size: '--',
             modified: formatDate(stat.mtime),

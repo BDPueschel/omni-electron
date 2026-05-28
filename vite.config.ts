@@ -9,6 +9,12 @@ export default defineConfig({
   build: {
     outDir: '../../dist',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'src/renderer/index.html'),
+        settings: path.resolve(__dirname, 'src/renderer/settings.html'),
+      },
+    },
   },
   resolve: {
     alias: {
@@ -17,6 +23,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: true,
   },
   test: {
     root: '.',

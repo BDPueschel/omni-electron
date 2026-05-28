@@ -5,12 +5,14 @@ import { useSearch } from '../hooks/useSearch';
 
 const mockSearch = vi.fn().mockResolvedValue([]);
 const mockGetFrequent = vi.fn().mockResolvedValue([]);
+const mockOnWindowShown = vi.fn().mockReturnValue(() => {});
 
 beforeEach(() => {
   vi.clearAllMocks();
   window.omni = {
     search: mockSearch,
     getFrequent: mockGetFrequent,
+    onWindowShown: mockOnWindowShown,
   } as any;
 });
 
@@ -34,9 +36,21 @@ describe('useSearch', () => {
     vi.useRealTimers();
   });
 
-  it('loads frequent items when query is cleared', async () => {
+  it('clears results when query is cleared', async () => {
     const { result } = renderHook(() => useSearch());
     await act(async () => result.current.setQuery(''));
-    expect(mockGetFrequent).toHaveBeenCalled();
+    expect(result.current.results).toEqual([]);
+    expect(mockGetFrequent).not.toHaveBeenCalled();
+  });
+
+  it('subscribes to onWindowShown and clears on show', () => {
+    const { result } = renderHook(() => useSearch());
+    expect(mockOnWindowShown).toHaveBeenCalledTimes(1);
+    const callback = mockOnWindowShown.mock.calls[0][0];
+
+    // Simulate window shown
+    act(() => callback());
+    expect(result.current.query).toBe('');
+    expect(result.current.results).toEqual([]);
   });
 });

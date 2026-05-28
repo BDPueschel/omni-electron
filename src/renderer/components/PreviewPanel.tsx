@@ -1,3 +1,5 @@
+import { Icon } from './Icon';
+
 export interface PreviewData {
   name: string;
   path: string;
@@ -42,7 +44,7 @@ export function PreviewPanel({ data }: PreviewPanelProps) {
           </pre>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-omni-muted gap-2">
-            <span className="text-4xl">📄</span>
+            <span style={{ color: 'var(--color-omni-accent)' }}><Icon name="file" size={48} /></span>
             <span className="text-sm">Binary file — no preview available</span>
             <span className="text-xs">{data.size}</span>
           </div>

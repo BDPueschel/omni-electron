@@ -51,12 +51,16 @@ export function registerIpcHandlers(
 
   ipcMain.handle('hide-window', () => {
     const win = getWindow();
-    win?.hide();
+    if (win) {
+      win.webContents.send('window-dismissing');
+      setTimeout(() => win.hide(), 120);
+    }
   });
 
   ipcMain.handle('search', async (_event, query: string) => {
     const cfg = config.get();
-    return registry.search(query, cfg.maxResultsPerCategory);
+    const grouped = await registry.search(query, cfg.maxResultsPerCategory);
+    return grouped.flatMap(g => g.results);
   });
 
   ipcMain.handle('execute-action', async (_event, action: ResultAction) => {
@@ -95,7 +99,7 @@ export function registerIpcHandlers(
       title: r.title,
       subtitle: r.path,
       action: { type: 'open', path: r.path },
-      icon: '⭐',
+      icon: 'star',
       kind: r.category,
       modified: r.lastUsed,
     }));
@@ -105,6 +109,31 @@ export function registerIpcHandlers(
     tracker.record(data.query, data.resultPath, data.category, data.title);
   });
 
+  ipcMain.handle('add-bookmark', async (_event, data: { path: string; title: string; category: string; icon: string; kind: string }) => {
+    tracker.addBookmark(data.path, data.title, data.category, data.icon, data.kind);
+  });
+
+  ipcMain.handle('remove-bookmark', async (_event, path: string) => {
+    tracker.removeBookmark(path);
+  });
+
+  ipcMain.handle('is-bookmarked', async (_event, path: string) => {
+    return tracker.isBookmarked(path);
+  });
+
+  ipcMain.handle('get-bookmarks', async () => {
+    return tracker.getBookmarks().map(b => ({
+      category: 'Bookmarks',
+      title: b.title,
+      subtitle: b.path,
+      action: { type: 'open', path: b.path },
+      icon: b.icon,
+      kind: b.kind,
+    }));
+  });
+
+  let resizeTimer: ReturnType<typeof setInterval> | null = null;
+
   ipcMain.handle('resize-window', (_event, height: number) => {
     const win = getWindow();
     if (!win) return;
@@ -112,9 +141,38 @@ export function registerIpcHandlers(
     const { screen } = require('electron');
     const { height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
     const maxHeight = Math.floor(screenHeight * 0.85);
-    const clampedHeight = Math.min(Math.max(height, 52), maxHeight);
+    const targetHeight = Math.min(Math.max(height, 52), maxHeight);
     const bounds = win.getBounds();
-    win.setBounds({ x: bounds.x, y: bounds.y, width: cfg.windowWidth, height: clampedHeight });
+
+    if (resizeTimer) {
+      clearInterval(resizeTimer);
+      resizeTimer = null;
+    }
+
+    const durationMs = (cfg.animationScale ?? 0.5) * 200;
+    if (durationMs <= 0 || Math.abs(targetHeight - bounds.height) <= 4) {
+      win.setBounds({ x: bounds.x, y: bounds.y, width: cfg.windowWidth, height: targetHeight });
+      return;
+    }
+
+    const steps = 6;
+    const stepTime = durationMs / steps;
+    const startHeight = bounds.height;
+    let step = 0;
+
+    resizeTimer = setInterval(() => {
+      step++;
+      if (step >= steps) {
+        win.setBounds({ x: bounds.x, y: bounds.y, width: cfg.windowWidth, height: targetHeight });
+        clearInterval(resizeTimer!);
+        resizeTimer = null;
+      } else {
+        const t = step / steps;
+        const eased = 1 - (1 - t) * (1 - t);
+        const h = Math.round(startHeight + (targetHeight - startHeight) * eased);
+        win.setBounds({ x: bounds.x, y: bounds.y, width: cfg.windowWidth, height: h });
+      }
+    }, stepTime);
   });
 
   ipcMain.handle('complete-path', async (_event, partial: string) => {

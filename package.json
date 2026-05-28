@@ -2,25 +2,28 @@
   "name": "omni-electron",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "main": "dist-electron/main/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "electron:rebuild": "electron-rebuild -f -w better-sqlite3",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && tsc -p tsconfig.node.json && electron .\"",
-    "electron:build": "npm run build && tsc -p tsconfig.node.json && electron-builder",
+    "electron:build": "npm run build && tsc -p tsconfig.node.json && npm run electron:rebuild && electron-builder",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0",
     "electron": "^33.0.0",
+    "expr-eval": "^2.0.2",
     "fzf": "^0.5.2",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

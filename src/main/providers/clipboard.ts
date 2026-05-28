@@ -87,7 +87,7 @@ export class ClipboardProvider implements SearchProvider {
         category: 'Clipboard',
         title: preview,
         subtitle: `Clipboard #${idx + 1} (${this.formatAge(entry.addedAt)})`,
-        icon: '📋',
+        icon: 'clipboard',
         kind: 'Clip',
         action: { type: 'copy' as const, text: entry.text },
       };

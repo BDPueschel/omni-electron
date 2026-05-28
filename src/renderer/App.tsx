@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { SearchInput } from './components/SearchInput';
 import { ColumnHeaders } from './components/ColumnHeaders';
 import { ResultTable } from './components/ResultTable';
@@ -8,13 +8,15 @@ import { BatchContextMenu } from './components/BatchContextMenu';
 import { PreviewPanel } from './components/PreviewPanel';
 import type { PreviewData } from './components/PreviewPanel';
 import { HelpOverlay } from './components/HelpOverlay';
+import { InlineSettings } from './components/InlineSettings';
 import { useSearch } from './hooks/useSearch';
 import { useSelection } from './hooks/useSelection';
 import { useKeyboard } from './hooks/useKeyboard';
 import type { SortColumn, SortDirection } from '../shared/types';
+import { applyTheme } from './themes';
 
 export function App() {
-  const { query, setQuery, grouped, flatResults } = useSearch();
+  const { query, setQuery, grouped, flatResults, refreshBookmarks } = useSearch();
 
   const {
     selectedIndex,
@@ -26,7 +28,41 @@ export function App() {
     shiftMoveDown,
     shiftMoveUp,
     clearMultiSelect,
+    jumpTo,
+    reset,
   } = useSelection(flatResults.length);
+
+  useEffect(() => {
+    reset();
+  }, [flatResults.length, query, reset]);
+
+  const revealRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    window.omni.getConfig().then(cfg => {
+      applyTheme(cfg.theme);
+      document.documentElement.style.setProperty('--font-scale', String(cfg.fontScale ?? 1));
+      document.documentElement.style.setProperty('--anim-duration', `${(cfg.animationScale ?? 0.5) * 200}ms`);
+    });
+    const cleanupShown = window.omni.onWindowShown(() => {
+      setSettingsOpen(false);
+      const el = revealRef.current;
+      if (el) {
+        el.style.animation = 'none';
+        void el.offsetHeight;
+        el.style.animation = 'revealApp 120ms ease-out';
+      }
+    });
+    const cleanupDismiss = window.omni.onWindowDismissing(() => {
+      const el = revealRef.current;
+      if (el) {
+        el.style.animation = 'none';
+        void el.offsetHeight;
+        el.style.animation = 'dismissApp 120ms ease-out forwards';
+      }
+    });
+    return () => { cleanupShown(); cleanupDismiss(); };
+  }, []);
 
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -35,6 +71,7 @@ export function App() {
   const [contextActionIndex, setContextActionIndex] = useState(0);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const sortedGrouped = useMemo(() => {
     if (!sortColumn) return grouped;
@@ -73,29 +110,17 @@ export function App() {
     }));
   }, [grouped, sortColumn, sortDirection]);
 
+  const contentRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    let height: number;
-
-    if (previewData) {
-      height = 500;
-    } else if (helpOpen) {
-      height = 420;
-    } else if (contextMenuIndex !== null) {
-      height = 52 + 28 * 3 + 32 * 3;
-    } else if (flatResults.length > 0) {
-      const groupCount = sortedGrouped.length;
-      const rowCount = flatResults.length;
-      height = 52 + 28 + groupCount * 28 + rowCount * 32 + 24;
-    } else if (query.trim()) {
-      height = 52 + 52;
-    } else {
-      height = 52;
-    }
-
-    if (window.omni?.resizeWindow) {
-      window.omni.resizeWindow(height);
-    }
-  }, [previewData, helpOpen, contextMenuIndex, flatResults, sortedGrouped, query]);
+    const measure = () => {
+      const el = contentRef.current;
+      if (!el) return;
+      const h = el.scrollHeight;
+      window.omni?.resizeWindow(Math.max(h, 52));
+    };
+    requestAnimationFrame(() => requestAnimationFrame(measure));
+  }, [settingsOpen, previewData, helpOpen, contextMenuIndex, flatResults, sortedGrouped, query]);
 
   const getActiveCategory = (): string | null => {
     let count = 0;
@@ -167,7 +192,7 @@ export function App() {
   const handleContextActionDown = useCallback(() => {
     const result = contextMenuIndex !== null ? flatResults[contextMenuIndex] : null;
     if (!result) return;
-    const actions = getContextActions(result);
+    const actions = getContextActions(result, false);
     setContextActionIndex((prev) => Math.min(actions.length - 1, prev + 1));
   }, [contextMenuIndex, flatResults]);
 
@@ -175,13 +200,25 @@ export function App() {
     if (contextMenuIndex === null) return;
     const result = flatResults[contextMenuIndex];
     if (!result) return;
-    const actions = getContextActions(result);
+    const actions = getContextActions(result, false);
     const action = actions[contextActionIndex];
-    if (action) {
-      window.omni.execute(action.action);
+    if (!action) return;
+
+    if (action.action.type === 'bookmark') {
+      const path = result.action.type === 'open' ? result.action.path : result.subtitle;
+      window.omni.addBookmark({ path, title: result.title, category: result.category, icon: result.icon, kind: result.kind });
+      handleCloseContextMenu();
+      refreshBookmarks();
+    } else if (action.action.type === 'unbookmark') {
+      const path = result.action.type === 'open' ? result.action.path : result.subtitle;
+      window.omni.removeBookmark(path);
+      handleCloseContextMenu();
+      refreshBookmarks();
+    } else {
+      window.omni.execute(action.action as import('../shared/types').ResultAction);
       handleCloseContextMenu();
     }
-  }, [contextMenuIndex, contextActionIndex, flatResults, handleCloseContextMenu]);
+  }, [contextMenuIndex, contextActionIndex, flatResults, handleCloseContextMenu, refreshBookmarks]);
 
   const handleTogglePreview = useCallback(async () => {
     if (previewData) {
@@ -239,9 +276,15 @@ export function App() {
     onSort: handleSort,
     onCopyPath: handleCopyPath,
     onHide: handleHide,
+    onToggleSettings: useCallback(() => setSettingsOpen(prev => !prev), []),
+    settingsOpen,
+    setSelectedIndex: jumpTo,
   });
 
   const renderMain = () => {
+    if (settingsOpen) {
+      return <InlineSettings onClose={() => setSettingsOpen(false)} />;
+    }
     if (previewData) {
       return <PreviewPanel data={previewData} />;
     }
@@ -267,6 +310,18 @@ export function App() {
             onExecute={(action) => {
               window.omni.execute(action);
               handleCloseContextMenu();
+            }}
+            onBookmark={() => {
+              const path = result.action.type === 'open' ? result.action.path : result.subtitle;
+              window.omni.addBookmark({ path, title: result.title, category: result.category, icon: result.icon, kind: result.kind });
+              handleCloseContextMenu();
+              refreshBookmarks();
+            }}
+            onUnbookmark={() => {
+              const path = result.action.type === 'open' ? result.action.path : result.subtitle;
+              window.omni.removeBookmark(path);
+              handleCloseContextMenu();
+              refreshBookmarks();
             }}
           />
         );
@@ -301,7 +356,14 @@ export function App() {
   };
 
   return (
-    <div className="w-full h-full bg-omni-bg text-omni-text font-sans flex flex-col">
+    <div
+      ref={(el) => {
+        (contentRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        (revealRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      }}
+      className="w-full bg-omni-bg text-omni-text font-sans flex flex-col"
+      style={{ animation: 'revealApp 150ms ease-out' }}
+    >
       <SearchInput value={query} onInput={setQuery} onKeyDown={handleKeyDown} />
       {renderMain()}
     </div>

@@ -12,7 +12,13 @@ interface OmniAPI {
   hideWindow(): Promise<void>;
   resizeWindow(height: number): Promise<void>;
   onWindowShown(callback: () => void): () => void;
+  onWindowDismissing(callback: () => void): () => void;
   completePath(partial: string): Promise<string[]>;
+  openSettings(): Promise<void>;
+  addBookmark(data: { path: string; title: string; category: string; icon: string; kind: string }): Promise<void>;
+  removeBookmark(path: string): Promise<void>;
+  isBookmarked(path: string): Promise<boolean>;
+  getBookmarks(): Promise<SearchResult[]>;
 }
 
 declare global {

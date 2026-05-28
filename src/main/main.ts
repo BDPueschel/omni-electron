@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, globalShortcut, Tray, Menu, nativeImage, ipcMain } from 'electron';
 import path from 'path';
 import { ConfigManager } from './config';
 import { registerIpcHandlers } from './ipc';
@@ -16,14 +16,13 @@ function createWindow() {
 
   mainWindow = new BrowserWindow({
     width: cfg.windowWidth,
-    height: 52,
+    height: 44,
     frame: false,
-    transparent: false,
+    transparent: true,
     resizable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
     show: false,
-    backgroundColor: '#0a0a0f',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -39,12 +38,21 @@ function createWindow() {
   }
 
   mainWindow.once('ready-to-show', () => {
+    centerWindow();
     mainWindow?.show();
   });
 
   mainWindow.on('blur', () => {
-    mainWindow?.hide();
+    dismissWindow();
   });
+}
+
+function dismissWindow() {
+  if (!mainWindow || !mainWindow.isVisible()) return;
+  mainWindow.webContents.send('window-dismissing');
+  setTimeout(() => {
+    mainWindow?.hide();
+  }, 120);
 }
 
 function createSettingsWindow() {
@@ -121,16 +129,18 @@ function createTray() {
 function centerWindow() {
   if (!mainWindow) return;
   const { screen } = require('electron');
-  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
+  const display = screen.getPrimaryDisplay();
+  const { width: screenWidth } = display.workAreaSize;
   const bounds = mainWindow.getBounds();
   const x = Math.round((screenWidth - bounds.width) / 2);
-  mainWindow.setPosition(x, 80);
+  const y = Math.round(display.workAreaSize.height * 0.08);
+  mainWindow.setPosition(x, y);
 }
 
 function toggleWindow() {
   if (!mainWindow) return;
   if (mainWindow.isVisible()) {
-    mainWindow.hide();
+    dismissWindow();
   } else {
     centerWindow();
     mainWindow.show();
@@ -156,12 +166,19 @@ app.whenReady().then(() => {
   const tracker = new UsageTracker(path.join(app.getPath('userData'), 'usage.db'));
   const registry = new ProviderRegistry();
   registry.updateConfig(cfg);
-  registry.addProvider(new FrequentProvider(tracker));
   registry.getClipboardProvider()?.startWatching();
   registerIpcHandlers(config, registry, tracker, () => mainWindow);
+
+  ipcMain.handle('open-settings', () => {
+    createSettingsWindow();
+  });
+
   createWindow();
   registerHotkey();
   createTray();
+
+  // Pre-warm slow providers (apps list) so first search is instant
+  registry.warmUp().catch(() => { /* non-critical */ });
 });
 
 app.on('will-quit', () => {

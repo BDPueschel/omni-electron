@@ -27,7 +27,7 @@ export class WebProvider implements SearchProvider {
         category: 'Web',
         title: `Search ${engineLabel} for "${trimmed}"`,
         subtitle: url,
-        icon: '🔎',
+        icon: 'web',
         kind: 'Web',
         action: { type: 'open_url', url },
       },

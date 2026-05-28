@@ -82,6 +82,13 @@ export class AppsProvider implements SearchProvider {
     }
   }
 
+  /** Pre-warm the app cache at startup so first search is instant. */
+  async warmUp(): Promise<void> {
+    if (this.cache.length === 0) {
+      await this.refresh();
+    }
+  }
+
   async search(query: string, limit: number): Promise<SearchResult[]> {
     const q = query.trim();
     if (!q) return [];
@@ -108,7 +115,7 @@ export class AppsProvider implements SearchProvider {
       category: 'Apps',
       title: app.title,
       subtitle: app.appPath,
-      icon: '⚡',
+      icon: 'app',
       kind: 'App',
       action: { type: 'open' as const, path: app.appPath },
     }));

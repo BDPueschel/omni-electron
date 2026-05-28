@@ -9,6 +9,7 @@ import { FileProvider } from './files';
 import { DirectoryProvider } from './directories';
 import { ClipboardProvider } from './clipboard';
 import { ProcessesProvider } from './processes';
+import { searchEverything, setEverythingPort } from './everything';
 import { parseQuery } from '../query-parser';
 
 export { MathProvider } from './math';
@@ -25,9 +26,12 @@ export { ProcessesProvider } from './processes';
 export class ProviderRegistry {
   private providers: SearchProvider[];
   private webProvider: WebProvider;
+  private useEverything: boolean;
 
   constructor() {
     this.webProvider = new WebProvider();
+    this.useEverything = process.platform === 'win32';
+
     this.providers = [
       new MathProvider(),
       new UrlProvider(),
@@ -35,8 +39,9 @@ export class ProviderRegistry {
       new ColorProvider(),
       new SystemProvider(),
       new AppsProvider(),
-      new FileProvider(),
-      new DirectoryProvider(),
+      ...(this.useEverything
+        ? []
+        : [new FileProvider(), new DirectoryProvider()]),
       new ClipboardProvider(),
       new ProcessesProvider(),
     ];
@@ -44,6 +49,11 @@ export class ProviderRegistry {
 
   getClipboardProvider(): ClipboardProvider | undefined {
     return this.providers.find(p => p.category === 'Clipboard') as ClipboardProvider | undefined;
+  }
+
+  async warmUp(): Promise<void> {
+    const appsProvider = this.providers.find(p => p instanceof AppsProvider) as AppsProvider | undefined;
+    await appsProvider?.warmUp();
   }
 
   addProvider(provider: SearchProvider): void {
@@ -54,48 +64,58 @@ export class ProviderRegistry {
     if (config.searchEngine) {
       this.webProvider.setEngine(config.searchEngine);
     }
+    if (config.everythingPort) {
+      setEverythingPort(config.everythingPort);
+    }
   }
 
   async search(query: string, limit: number): Promise<GroupedResults[]> {
     const parsed = parseQuery(query);
 
-    // Build the effective query string to pass down to providers.
-    // For regex mode pass original; for OR mode pass the full raw query;
-    // otherwise join remaining terms (path scope is consumed by FileProvider).
     const effectiveQuery = parsed.isRegex
       ? query
       : parsed.orGroups.length > 0
         ? query
         : parsed.terms.join(' ') || query;
 
-    const settled = await Promise.allSettled(
-      this.providers.map(p => {
-        // FileProvider gets extra context about pathScope / wildcardExt
-        if (p instanceof FileProvider) {
-          return p.search(effectiveQuery, limit, parsed.pathScope, parsed.wildcardExt ?? undefined);
-        }
-        return p.search(effectiveQuery, limit);
-      }),
-    );
+    const everythingPromise = this.useEverything
+      ? searchEverything(effectiveQuery, limit)
+      : null;
+
+    const providerPromises = this.providers.map(p => {
+      if (p instanceof FileProvider) {
+        return p.search(effectiveQuery, limit, parsed.pathScope, parsed.wildcardExt ?? undefined);
+      }
+      return p.search(effectiveQuery, limit);
+    });
+
+    const [evResult, ...providerResults] = await Promise.all([
+      everythingPromise ? everythingPromise.catch(() => null) : Promise.resolve(null),
+      ...providerPromises.map(p => p.catch(() => [] as SearchResult[])),
+    ]);
 
     const byCategory = new Map<CategoryName, SearchResult[]>();
 
-    this.providers.forEach((provider, i) => {
-      const outcome = settled[i];
-      if (outcome.status === 'fulfilled' && outcome.value.length > 0) {
-        let results = outcome.value;
+    if (evResult) {
+      if (evResult.files.length > 0) byCategory.set('Files', evResult.files);
+      if (evResult.directories.length > 0) byCategory.set('Directories', evResult.directories);
+    }
 
-        // Apply negation post-filter
+    this.providers.forEach((provider, i) => {
+      const results = providerResults[i];
+      if (results.length > 0) {
+        let filtered = results;
+
         if (parsed.negations.length > 0) {
-          results = results.filter(r => {
+          filtered = filtered.filter(r => {
             const haystack = (r.title + ' ' + r.subtitle).toLowerCase();
             return !parsed.negations.some(neg => haystack.includes(neg.toLowerCase()));
           });
         }
 
-        if (results.length > 0) {
+        if (filtered.length > 0) {
           const existing = byCategory.get(provider.category) ?? [];
-          byCategory.set(provider.category, [...existing, ...results]);
+          byCategory.set(provider.category, [...existing, ...filtered]);
         }
       }
     });

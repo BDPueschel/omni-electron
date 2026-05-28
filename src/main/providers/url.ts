@@ -16,7 +16,7 @@ export class UrlProvider implements SearchProvider {
         category: 'URL',
         title: trimmed,
         subtitle: 'Open URL',
-        icon: '🌐',
+        icon: 'globe',
         kind: 'URL',
         action: { type: 'open_url', url },
       },

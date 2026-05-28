@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { OmniConfig } from '../../shared/types';
+import type { OmniConfig, OmniTheme } from '../../shared/types';
+import { THEME_NAMES } from '../themes';
 import './settings.css';
 
 export function Settings() {
@@ -25,6 +26,8 @@ export function Settings() {
     <div className="settings-container">
       <h1 className="settings-title">Omni Settings</h1>
 
+      <div className="settings-section">General</div>
+
       <div className="settings-row">
         <label className="settings-label">Hotkey</label>
         <input
@@ -36,7 +39,7 @@ export function Settings() {
       </div>
 
       <div className="settings-row">
-        <label className="settings-label">Max Results</label>
+        <label className="settings-label">Max Results per Category</label>
         <input
           className="settings-input"
           type="number"
@@ -69,8 +72,23 @@ export function Settings() {
         />
       </div>
 
+      <div className="settings-section">Appearance</div>
+
       <div className="settings-row">
-        <label className="settings-label">Theme Opacity ({config.themeOpacity}%)</label>
+        <label className="settings-label">Theme</label>
+        <select
+          className="settings-input"
+          value={config.theme}
+          onChange={(e) => setConfig({ ...config, theme: e.target.value as OmniTheme })}
+        >
+          {(Object.entries(THEME_NAMES) as [OmniTheme, string][]).map(([key, name]) => (
+            <option key={key} value={key}>{name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="settings-row">
+        <label className="settings-label">Opacity ({config.themeOpacity}%)</label>
         <input
           className="settings-slider"
           type="range"
@@ -90,6 +108,48 @@ export function Settings() {
           max={1200}
           value={config.windowWidth}
           onChange={(e) => setConfig({ ...config, windowWidth: Number(e.target.value) })}
+        />
+      </div>
+
+      <div className="settings-row">
+        <label className="settings-label">Font Scale ({(config.fontScale ?? 1).toFixed(2)}x)</label>
+        <input
+          className="settings-slider"
+          type="range"
+          min={0.75}
+          max={1.5}
+          step={0.05}
+          value={config.fontScale ?? 1}
+          onChange={(e) => setConfig({ ...config, fontScale: Number(e.target.value) })}
+        />
+      </div>
+
+      <div className="settings-row">
+        <label className="settings-label">
+          Animation ({(config.animationScale ?? 0.5) === 0 ? 'Instant' : `${Math.round((config.animationScale ?? 0.5) * 200)}ms`})
+        </label>
+        <input
+          className="settings-slider"
+          type="range"
+          min={0}
+          max={1}
+          step={0.1}
+          value={config.animationScale ?? 0.5}
+          onChange={(e) => setConfig({ ...config, animationScale: Number(e.target.value) })}
+        />
+      </div>
+
+      <div className="settings-section">Integration</div>
+
+      <div className="settings-row">
+        <label className="settings-label">Everything HTTP Port</label>
+        <input
+          className="settings-input"
+          type="number"
+          min={1}
+          max={65535}
+          value={config.everythingPort}
+          onChange={(e) => setConfig({ ...config, everythingPort: Number(e.target.value) })}
         />
       </div>
 

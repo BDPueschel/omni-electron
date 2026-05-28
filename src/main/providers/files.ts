@@ -56,7 +56,7 @@ export class FileProvider implements SearchProvider {
             category: 'Files',
             title: path.basename(filePath),
             subtitle: filePath,
-            icon: '📄',
+            icon: 'file',
             kind: 'File',
             size: formatSize(stat.size),
             modified: formatDate(stat.mtime),

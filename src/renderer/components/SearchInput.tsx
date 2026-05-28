@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { Icon } from './Icon';
 
 interface SearchInputProps {
   value: string;
@@ -15,7 +16,7 @@ export function SearchInput({ value, onInput, onKeyDown }: SearchInputProps) {
 
   return (
     <div className="flex items-center px-3 py-2 border-b border-omni-separator shrink-0">
-      <span className="text-white/40 mr-3 text-base">🔍</span>
+      <span className="text-white/40 mr-3"><Icon name="search" size={18} /></span>
       <input
         ref={inputRef}
         type="text"
@@ -25,14 +26,6 @@ export function SearchInput({ value, onInput, onKeyDown }: SearchInputProps) {
         onKeyDown={onKeyDown}
         className="w-full bg-transparent border-none outline-none text-lg text-omni-text placeholder:text-white/30 font-sans"
       />
-      {value && (
-        <button
-          onClick={() => onInput('')}
-          className="text-white/30 hover:text-white/60 text-sm ml-2"
-        >
-          ✕
-        </button>
-      )}
     </div>
   );
 }

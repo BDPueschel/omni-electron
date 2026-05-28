@@ -16,7 +16,7 @@ export class FrequentProvider implements SearchProvider {
       title: r.title,
       subtitle: r.path,
       action: { type: 'open' as const, path: r.path },
-      icon: '⭐',
+      icon: 'star',
       kind: r.category,
       modified: r.lastUsed,
     }));

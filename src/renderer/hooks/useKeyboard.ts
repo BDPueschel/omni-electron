@@ -32,6 +32,9 @@ interface UseKeyboardConfig {
   onSort: (column: SortColumn) => void;
   onCopyPath: () => void;
   onHide: () => void;
+  onToggleSettings: () => void;
+  settingsOpen: boolean;
+  setSelectedIndex: (index: number) => void;
 }
 
 const SORT_KEYS: Record<string, SortColumn> = {
@@ -72,6 +75,9 @@ export function useKeyboard(config: UseKeyboardConfig) {
     onSort,
     onCopyPath,
     onHide,
+    onToggleSettings,
+    settingsOpen,
+    setSelectedIndex,
   } = config;
 
   const getActiveCategory = useCallback((): string | null => {
@@ -83,21 +89,36 @@ export function useKeyboard(config: UseKeyboardConfig) {
     return null;
   }, [grouped, selectedIndex]);
 
-  const jumpToNextCategory = useCallback(() => {
+  const getCategoryBounds = useCallback(() => {
     let count = 0;
-    for (let gi = 0; gi < grouped.length; gi++) {
-      const g = grouped[gi];
-      if (count + g.results.length > selectedIndex) {
-        // currently in group gi, jump to start of next group
-        const nextGroup = grouped[gi + 1];
-        if (nextGroup) {
-          onExpandCategory(nextGroup.category);
-        }
-        return;
+    for (const g of grouped) {
+      const end = count + g.results.length - 1;
+      if (selectedIndex >= count && selectedIndex <= end) {
+        return { start: count, end };
       }
-      count += g.results.length;
+      count = end + 1;
     }
-  }, [grouped, selectedIndex, onExpandCategory]);
+    return { start: 0, end: 0 };
+  }, [grouped, selectedIndex]);
+
+  const getNextCategoryStart = useCallback(() => {
+    let count = 0;
+    for (let i = 0; i < grouped.length; i++) {
+      count += grouped[i].results.length;
+      if (count > selectedIndex && i + 1 < grouped.length) return count;
+    }
+    return grouped.flatMap(g => g.results).length - 1;
+  }, [grouped, selectedIndex]);
+
+  const getPrevCategoryEnd = useCallback(() => {
+    let count = 0;
+    for (let i = 0; i < grouped.length; i++) {
+      const start = count;
+      count += grouped[i].results.length;
+      if (start > 0 && selectedIndex < count && selectedIndex >= start) return start - 1;
+    }
+    return 0;
+  }, [grouped, selectedIndex]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     const { key, shiftKey, ctrlKey } = e;
@@ -134,20 +155,24 @@ export function useKeyboard(config: UseKeyboardConfig) {
     // Ctrl+key combos
     if (ctrlKey) {
       switch (key) {
-        case 'ArrowDown':
+        case 'ArrowDown': {
           e.preventDefault();
-          jumpToNextCategory();
+          const bounds = getCategoryBounds();
+          if (selectedIndex === bounds.end) {
+            const next = getNextCategoryStart();
+            setSelectedIndex(Math.min(next, grouped.flatMap(g => g.results).length - 1));
+          } else {
+            setSelectedIndex(bounds.end);
+          }
           return;
+        }
         case 'ArrowUp': {
           e.preventDefault();
-          // Jump to start of current category
-          let count = 0;
-          for (const g of grouped) {
-            if (count + g.results.length > selectedIndex) {
-              onExpandCategory(g.category);
-              return;
-            }
-            count += g.results.length;
+          const bounds = getCategoryBounds();
+          if (selectedIndex === bounds.start) {
+            setSelectedIndex(Math.max(getPrevCategoryEnd(), 0));
+          } else {
+            setSelectedIndex(bounds.start);
           }
           return;
         }
@@ -172,6 +197,10 @@ export function useKeyboard(config: UseKeyboardConfig) {
         case ' ':
           e.preventDefault();
           onTogglePreview();
+          return;
+        case ',':
+          e.preventDefault();
+          onToggleSettings();
           return;
         default:
           if (SORT_KEYS[key]) {
@@ -199,10 +228,13 @@ export function useKeyboard(config: UseKeyboardConfig) {
           moveUp();
         }
         break;
-      case 'Tab':
+      case 'Tab': {
         e.preventDefault();
-        jumpToNextCategory();
+        const next = getNextCategoryStart();
+        const total = grouped.flatMap(g => g.results).length;
+        setSelectedIndex(Math.min(next, total - 1));
         break;
+      }
       case 'Home':
         e.preventDefault();
         jumpToStart();
@@ -223,12 +255,17 @@ export function useKeyboard(config: UseKeyboardConfig) {
         break;
       case 'Enter':
         e.preventDefault();
-        onExecute(selectedIndex);
+        if (shiftKey) {
+          onOpenContextMenu();
+        } else {
+          onExecute(selectedIndex);
+        }
         break;
       case 'Escape':
         e.preventDefault();
-        // Priority chain: preview > help > context > expanded > multi-select > hide
-        if (previewOpen) {
+        if (settingsOpen) {
+          onToggleSettings();
+        } else if (previewOpen) {
           onTogglePreview();
         } else if (helpOpen) {
           onToggleHelp();
@@ -269,7 +306,10 @@ export function useKeyboard(config: UseKeyboardConfig) {
     shiftMoveDown,
     shiftMoveUp,
     clearMultiSelect,
-    jumpToNextCategory,
+    getNextCategoryStart,
+    getCategoryBounds,
+    getPrevCategoryEnd,
+    setSelectedIndex,
     getActiveCategory,
     onExecute,
     onExpandCategory,
@@ -284,6 +324,8 @@ export function useKeyboard(config: UseKeyboardConfig) {
     onSort,
     onCopyPath,
     onHide,
+    onToggleSettings,
+    settingsOpen,
   ]);
 
   return { handleKeyDown };

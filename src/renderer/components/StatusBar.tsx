@@ -11,7 +11,9 @@ export function StatusBar({ totalResults, selectedResult, multiSelectedCount }: 
   if (multiSelectedCount > 0) {
     text = `${multiSelectedCount + 1} items selected · Shift+→ for batch actions`;
   } else if (selectedResult) {
-    text = `${totalResults} results · ${selectedResult.subtitle}`;
+    text = selectedResult.subtitle
+      ? `${totalResults} results · ${selectedResult.subtitle}`
+      : `${totalResults} results`;
   } else {
     text = `${totalResults} results`;
   }

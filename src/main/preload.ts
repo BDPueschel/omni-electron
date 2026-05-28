@@ -15,5 +15,14 @@ contextBridge.exposeInMainWorld('omni', {
     ipcRenderer.on('window-shown', callback);
     return () => ipcRenderer.removeListener('window-shown', callback);
   },
+  onWindowDismissing: (callback: () => void) => {
+    ipcRenderer.on('window-dismissing', callback);
+    return () => ipcRenderer.removeListener('window-dismissing', callback);
+  },
   completePath: (partial: string) => ipcRenderer.invoke('complete-path', partial),
+  openSettings: () => ipcRenderer.invoke('open-settings'),
+  addBookmark: (data: { path: string; title: string; category: string; icon: string; kind: string }) => ipcRenderer.invoke('add-bookmark', data),
+  removeBookmark: (path: string) => ipcRenderer.invoke('remove-bookmark', path),
+  isBookmarked: (path: string) => ipcRenderer.invoke('is-bookmarked', path),
+  getBookmarks: () => ipcRenderer.invoke('get-bookmarks'),
 });
