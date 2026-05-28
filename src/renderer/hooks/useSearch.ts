@@ -61,7 +61,7 @@ export function useSearch() {
       } catch {
         if (genRef.current === gen) setResults([]);
       }
-    }, 50);
+    }, 30);
   }, [loadHomeScreen]);
 
   const grouped: GroupedResults[] = CATEGORY_ORDER

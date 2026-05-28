@@ -53,7 +53,11 @@ export class ProviderRegistry {
 
   async warmUp(): Promise<void> {
     const appsProvider = this.providers.find(p => p instanceof AppsProvider) as AppsProvider | undefined;
-    await appsProvider?.warmUp();
+    const procProvider = this.providers.find(p => p instanceof ProcessesProvider) as ProcessesProvider | undefined;
+    await Promise.all([
+      appsProvider?.warmUp(),
+      procProvider?.warmUp(),
+    ]);
   }
 
   addProvider(provider: SearchProvider): void {

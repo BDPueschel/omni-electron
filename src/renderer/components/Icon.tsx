@@ -1,10 +1,12 @@
+import React from 'react';
+
 interface IconProps {
   name: string;
   className?: string;
   size?: number;
 }
 
-const ICONS: Record<string, (size: number) => JSX.Element> = {
+const ICONS: Record<string, (size: number) => React.ReactElement> = {
   star: (s) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="currentColor">
       <path d="M8 1.5l1.76 3.57 3.94.57-2.85 2.78.67 3.93L8 10.52l-3.52 1.83.67-3.93L2.3 5.64l3.94-.57z" />

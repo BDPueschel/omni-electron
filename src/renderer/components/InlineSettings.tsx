@@ -18,7 +18,7 @@ export function InlineSettings({ onClose }: InlineSettingsProps) {
   const handleSave = async () => {
     if (!config) return;
     await window.omni.saveConfig(config);
-    applyTheme(config.theme);
+    applyTheme(config.theme, config.customAccent);
     document.documentElement.style.setProperty('--font-scale', String(config.fontScale ?? 1));
     document.documentElement.style.setProperty('--anim-duration', `${(config.animationScale ?? 0.5) * 200}ms`);
     setSaved(true);
@@ -67,8 +67,6 @@ export function InlineSettings({ onClose }: InlineSettingsProps) {
                 }`}
                 style={{
                   background: config.theme === key ? 'var(--color-omni-accent-bg)' : undefined,
-                  ringColor: config.theme === key ? 'var(--color-omni-accent)' : undefined,
-                  borderColor: config.theme === key ? 'var(--color-omni-accent)' : 'transparent',
                   border: config.theme === key ? '1px solid var(--color-omni-accent)' : '1px solid transparent',
                 }}
               >
@@ -78,6 +76,16 @@ export function InlineSettings({ onClose }: InlineSettingsProps) {
             ))}
           </div>
         </div>
+        {config.theme === 'mono' && (
+          <Row label="Accent Color">
+            <input
+              type="color"
+              value={config.customAccent ?? '#3b82f6'}
+              onChange={(e) => setConfig({ ...config, customAccent: e.target.value })}
+              style={{ width: 32, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}
+            />
+          </Row>
+        )}
         <Row label={`Opacity (${config.themeOpacity}%)`}>
           <input type="range" min={40} max={100} value={config.themeOpacity} className="w-28 accent-[var(--color-omni-accent)]"
             onChange={(e) => setConfig({ ...config, themeOpacity: Number(e.target.value) })} />

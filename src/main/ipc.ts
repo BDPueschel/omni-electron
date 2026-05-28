@@ -68,7 +68,12 @@ export function registerIpcHandlers(
 
     switch (action.type) {
       case 'open':
-        await shell.openPath(action.path);
+        if (action.path.includes('!') && !action.path.includes('\\')) {
+          const { execFile } = require('child_process');
+          execFile('explorer.exe', [`shell:appsFolder\\${action.path}`]);
+        } else {
+          await shell.openPath(action.path);
+        }
         break;
       case 'open_url':
         await shell.openExternal(action.url);

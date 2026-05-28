@@ -12,7 +12,15 @@ export function SearchInput({ value, onInput, onKeyDown }: SearchInputProps) {
 
   useEffect(() => {
     inputRef.current?.focus();
+    const cleanup = window.omni.onWindowShown(() => {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    });
+    return cleanup;
   }, []);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [value]);
 
   return (
     <div className="flex items-center px-3 py-2 border-b border-omni-separator shrink-0">

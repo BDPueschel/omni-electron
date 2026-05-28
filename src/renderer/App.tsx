@@ -40,7 +40,7 @@ export function App() {
 
   useEffect(() => {
     window.omni.getConfig().then(cfg => {
-      applyTheme(cfg.theme);
+      applyTheme(cfg.theme, cfg.customAccent);
       document.documentElement.style.setProperty('--font-scale', String(cfg.fontScale ?? 1));
       document.documentElement.style.setProperty('--anim-duration', `${(cfg.animationScale ?? 0.5) * 200}ms`);
     });

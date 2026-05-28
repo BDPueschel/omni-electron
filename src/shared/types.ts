@@ -16,7 +16,7 @@ export type ResultAction =
   | { type: 'system_command'; command: string }
   | { type: 'kill_process'; pid: number; name: string };
 
-export type OmniTheme = 'midnight' | 'obsidian' | 'nord' | 'solarized' | 'monokai' | 'dracula';
+export type OmniTheme = 'midnight' | 'obsidian' | 'nord' | 'solarized' | 'monokai' | 'dracula' | 'mono';
 
 export interface OmniConfig {
   hotkey: string;
@@ -27,6 +27,7 @@ export interface OmniConfig {
   windowWidth: number;
   everythingPort: number;
   theme: OmniTheme;
+  customAccent: string;
   fontScale: number;
   animationScale: number;
 }
@@ -40,6 +41,7 @@ export const DEFAULT_CONFIG: OmniConfig = {
   windowWidth: 850,
   everythingPort: 8989,
   theme: 'midnight' as OmniTheme,
+  customAccent: '#3b82f6',
   fontScale: 1.0,
   animationScale: 0.5,
 };

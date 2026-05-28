@@ -88,9 +88,11 @@ function toSearchResult(r: EverythingResult): SearchResult {
   };
 }
 
+const agent = new http.Agent({ keepAlive: true, maxSockets: 2 });
+
 function fetchHttp(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const req = http.get(url, { timeout: 2000 }, (res) => {
+    const req = http.get(url, { timeout: 2000, agent }, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => resolve(data));

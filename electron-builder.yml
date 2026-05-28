@@ -6,21 +6,12 @@ directories:
 files:
   - dist/**/*
   - dist-electron/**/*
+  - node_modules/better-sqlite3/**/*
+  - node_modules/bindings/**/*
+  - node_modules/file-uri-to-path/**/*
+asarUnpack:
+  - "**/*.node"
 win:
-  target: nsis
+  target: dir
   icon: assets/icon.ico
-mac:
-  target: dmg
-  icon: assets/icon.icns
-  category: public.app-category.productivity
-nsis:
-  oneClick: true
-  perMachine: false
-dmg:
-  contents:
-    - x: 130
-      y: 220
-    - x: 410
-      y: 220
-      type: link
-      path: /Applications
+  signAndEditExecutable: false

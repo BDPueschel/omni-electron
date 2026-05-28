@@ -97,19 +97,10 @@ export class AppsProvider implements SearchProvider {
       await this.refresh();
     }
 
-    let matchedApps: AppEntry[];
-
-    try {
-      const { Fzf } = await import('fzf');
-      const fzf = new Fzf(this.cache, { selector: (item: AppEntry) => item.title });
-      matchedApps = fzf.find(q).map((r: { item: AppEntry }) => r.item).slice(0, limit);
-    } catch {
-      // Fallback to substring matching if fzf fails to load
-      const ql = q.toLowerCase();
-      matchedApps = this.cache
-        .filter(app => app.title.toLowerCase().includes(ql))
-        .slice(0, limit);
-    }
+    const ql = q.toLowerCase();
+    const matchedApps = this.cache
+      .filter(app => app.title.toLowerCase().includes(ql))
+      .slice(0, limit);
 
     return matchedApps.map(app => ({
       category: 'Apps',
